@@ -30,6 +30,41 @@ A page on a tracker, aggregator, wrapper or mirror site is **not** verification,
 
 ---
 
+## Client-rendered and blocked pages
+
+Many employer sites render the posting with JavaScript or refuse automated fetches, so a plain fetch returns an empty shell, a bot-verification page or a 403. **That is not a closed posting and it must never be reported as one.** Work down this ladder, stopping at the first rung that returns the real posting text. Rungs 1 to 3 need nothing but a fetch tool, so they work in browser-only hosts such as claude.ai web.
+
+1. **Read the data behind the page.** `verify_jobs.py` does this automatically, and you can do the same by hand with a plain fetch.
+   - Embedded data in the raw HTML: `application/ld+json` `JobPosting`, `__NEXT_DATA__`, `window.__appData`, Apple-style `__staticRouterHydrationData`.
+   - The ATS's public JSON for that single posting: Greenhouse, Lever, Ashby, SmartRecruiters, Workable, Workday, Oracle HCM, Microsoft careers. The exact endpoints are in [`sources_and_fallbacks.md`](../sources/sources_and_fallbacks.md) ("Platform endpoints"). A 404 from the employer's own JSON, or an id missing from the employer's board, is real evidence the posting is gone.
+2. **Use the host's browser tool** if it has one (any tool that opens a page and returns rendered text). Open the posting itself, not just the list, and read the rendered text.
+3. **Render it locally (optional).** `scripts/verify/render_page.py` uses Playwright if installed and any Chromium or Chrome it finds. It waits for the text to settle (never for network-idle), tries headless first, and may open a visible Chrome window for bot walls. `verify_jobs.py --render headless|headed|off` calls it for the pages that still failed. If Playwright is absent it says so and the run continues. **Never install anything without asking** (see "Offering the optional install" below).
+4. **Search-index confirmation (lower confidence).** A web search for the exact title, employer and requisition id that returns the employer's own posting page confirms the role was recently indexed. It can lag a closure, so it is **never "verified"**; it only supports the label "likely open, not fetched" below.
+5. **Never ask the user to copy or paste pages.** Roles that no rung could read go into one capped section instead (see below).
+
+### Offering the optional install
+
+Offer it **only when all of these hold**: the run hit pages it could not read (the verifier printed "Render skipped" or returned `could_not_machine_check` rows), the host can run commands and reach the network (`python3 scripts/setup_optional.py --check` prints `"can_install": true`), it is not a lite run, and you have not already asked in this run. In a browser-only or chat-only host (claude.ai web, a plain Gemini chat, anywhere you cannot execute code) do not offer it and do not mention installing; just use the ladder's other rungs.
+
+Ask once through the question tool, multi-select, one option per item that `--check` lists as missing, plus "Not now". In the question, say for every item what it is, why it is needed, how big it is and where it goes, using the `what`, `why`, `size` and `where` fields from `--check`:
+- **Playwright** (a Python library that drives a browser): opens JavaScript-rendered and bot-checked job pages and reads the posting text, which a plain fetch cannot. It installs into a private virtual environment at `~/.job-search-skill`, so the system Python is untouched.
+- **Chromium** (an open-source browser build Playwright launches): only offered when Google Chrome is not already installed, because Chrome is used when present. It is a download of roughly 100 to 300 MB in Playwright's browser cache.
+
+Also say that nothing else is installed or changed, that it can be removed with `python3 scripts/setup_optional.py --uninstall`, and that declining only means those pages are listed as "could not machine-check". Install exactly the chosen items with `python3 scripts/setup_optional.py --install <ids>`, then re-run `verify_jobs.py` on the rows that were unreadable. If the person declines or the install fails, continue without it and say so once in the notes.
+
+**Confidence tiers** (shown in the output as the script's `verification_tier`):
+
+| Tier | Meaning | Where it goes |
+|---|---|---|
+| `verified` | Posting text read from the page, the ATS JSON or a browser, and all checks run | Apply now |
+| `could_not_machine_check` | Blocked, bot-walled, unreachable or client-rendered and nothing above could read it | "Could not machine-check" section, capped (below) |
+| `rejected` | Read successfully and failed a check (closed, wrong level, hard requirement) | Dropped |
+| `unconfirmed` | Only a tracker or aggregator row; the employer side was not confirmed | "Unchecked leads", labeled as such |
+
+The level and eligibility checks run on whatever real text exists (title, snippet, structured data). A role whose text never became readable cannot pass the level check, so it never enters "Apply now". A `could_not_machine_check` row is capped at the **top 10 to 15 by fit**, with the link, one line of reason, and (when rung 4 found it) "likely open per search". It never claims the role is verified or closed, and contract roles in this section are not recommended as career-forward on a title alone (the trajectory test cannot run without the text).
+
+---
+
 ## Anti-Cheating & Integrity Invariant
 
 > [!CAUTION]
@@ -39,7 +74,7 @@ A page on a tracker, aggregator, wrapper or mirror site is **not** verification,
 >
 > **Strict Anti-Fabrication Invariants**:
 > - Never claim a link is verified, live, or has an active application button unless the tool/script actually fetched that exact URL and verified its contents.
-> - If an exact URL cannot be reached or fails to return HTTP 200 with non-empty content, it is an explicit failure (`ERR_UNVERIFIED_FETCH`) and must be marked **❌ NOT VERIFIED (NOT PROPER)** and dropped immediately.
+> - If an exact URL cannot be read, it is **not verified**: either dropped (the employer's own data says it is gone or it failed a check), or, when the site only blocked or could not render the fetch, listed under "Could not machine-check" (see "Client-rendered and blocked pages"). Never describe it as verified, and never as closed without evidence.
 > - Fabricating a verification claim or asserting link liveness based on search snippets without a live fetch is strictly prohibited.
 > - **Internal Level Codes**: Never invent or guess an internal level code (e.g. "L3", "IC4"). Only cite an internal company band code if there is explicit evidence in the job posting text, URL slug, or HTML metadata. If unstated, classify solely by candidate band (e.g. `Calibrated <band> / <X–Y> YOE (internal band unstated in JD)`).
 
@@ -52,7 +87,8 @@ The agent must verify that the job opening genuinely exists, is currently live, 
 
 1. **Direct HTTP Status & Reachability**:
    - The URL must return a successful HTTP status code (`200 OK`).
-   - If the request returns `404 Not Found`, `410 Gone`, `403 Forbidden`, `500 Server Error`, or fails DNS/connection, the opening fails Check 1.
+   - `404 Not Found` or `410 Gone` from the employer's own page or job data means the posting is gone, and the opening fails Check 1.
+   - `401`, `403`, `406`, `429`, `451`, `503`, a bot-verification page, or a timeout means **the site refused or did not answer an automated fetch**. That is not evidence the role is closed. Do not fail it as dead; take it through the ladder in "Client-rendered and blocked pages" below.
 2. **Deep Inspection of the Raw HTML Payload (Don't Give Up Too Easily)**:
    - The body text must contain full, untruncated job description content (minimum length threshold: $\ge 300$ characters of clean, stripped text).
    - **Examine Embedded HTML Payloads for SPAs**: Modern enterprise portals (Workday, Ashby, Greenhouse and many in-house career sites) often embed the real job description in structured metadata rather than top-level paragraph tags:
@@ -67,6 +103,7 @@ The agent must verify that the job opening genuinely exists, is currently live, 
      - A dead redirect where the ATS redirects from a specific requisition slug to a generic careers homepage (`/careers`, `/home`, or `/jobs` root) without the role details.
 4. **Active Application Channel**:
    - The page must have an active application form, direct ATS submission embed, or clearly designated application button (e.g., `Apply Now`, `Submit Application`).
+   - Closure wording counts only when it is visible, meaningful text on the page. A phrase in a screen-reader-only region, a script, a footer or a help text is not a closure (live Uber postings carry "Job removed" in a hidden announcement span next to "Apply now").
 
 ---
 
@@ -107,7 +144,8 @@ When a candidate job is evaluated, classify any failure under the following dete
 
 | Failure Code | Root Cause | Actionable Remedy |
 | :--- | :--- | :--- |
-| `ERR_UNVERIFIED_FETCH` | URL could not be fetched or verified via live HTTP request | Cannot verify without live fetch $\rightarrow$ **Drop immediately**. |
+| `ERR_UNVERIFIED_FETCH` | URL could not be fetched (DNS failure, no answer) and nothing in the ladder could read it | Not verified $\rightarrow$ **Drop**, or list under "Could not machine-check" if it is a top-fit role from a site that blocks automated fetches. |
+| `ERR_BLOCKED_OR_CLIENT_RENDERED` | 401/403/406/429/451/503, bot-verification page, or JS shell | Run the ladder in "Client-rendered and blocked pages"; never report as closed. |
 | `ERR_DEAD_URL` | URL returns 404, 410, DNS failure, or redirects away from requisition to careers root | Check for updated ATS slug or direct career portal URL. If no live URL exists $\rightarrow$ **Drop immediately**. |
 | `ERR_EMPTY_PAGE` | Page returns 200 but text $< 300$ chars or displays "job closed" / "role does not exist" | Posting has expired or is a ghost listing $\rightarrow$ **Drop immediately**. |
 | `ERR_MISLEVELED_YOE` | JD's stated minimum years exceeds the band's ceiling (`--max-yoe`) | Posting exceeds candidate's calibrated level $\rightarrow$ **Drop immediately**. |
@@ -135,9 +173,9 @@ Verification evidence is kept in an internal scratch notes file for the agent's 
 Run `scripts/verify/verify_jobs.py` to evaluate Checks 1 and 2 programmatically:
 
 ```bash
-python3 scripts/verify/verify_jobs.py raw_jobs.json --output verified_roles.json --max-yoe <band ceiling> [--min-yoe <floor>] [--allow-titles senior staff ...] [--include-title-regex <role family regex>] [--exclude-title-regex <regex>] [--exclude-companies <name> ...] [--shell-hosts <host> ...] [--prior-dir ./job_search_runs]
+python3 scripts/verify/verify_jobs.py raw_jobs.json --output verified_roles.json --max-yoe <band ceiling> [--min-yoe <floor>] [--allow-titles senior staff ...] [--include-title-regex <role family regex>] [--exclude-title-regex <regex>] [--exclude-companies <name> ...] [--shell-hosts <host> ...] [--prior-dir ./job_search_runs] [--render headless|headed|off]
 ```
 
-`verify_jobs.py` performs a live HTTP fetch, deep-inspects raw HTML (including JSON-LD, Next.js state, and OpenGraph metadata), verifies non-emptiness and absence of closed/redirect signals, validates YOE and titles against the candidate level, and marks `is_proper: bool`. Only roles with `is_proper == True` advance to deliverables.
+`verify_jobs.py` performs a live HTTP fetch (or reads the ATS's JSON for supported platforms), deep-inspects raw HTML (including JSON-LD, Next.js state, and OpenGraph metadata), verifies non-emptiness and absence of closed/redirect signals, validates YOE and titles against the candidate level, and marks `is_proper: bool`. Only roles with `is_proper == True` advance to deliverables.
 
 **Scope of the script**: it automates Check 1, Check 2, the earlier-run filter (`--prior-dir`) and company exclusions (`--exclude-companies`). **Check 3 (hiring channel & timing) is judged by the agent** from the full text fetched with `scripts/verify/fetch_job_text.py`; apply it to every role the script marks proper before it enters a deliverable.

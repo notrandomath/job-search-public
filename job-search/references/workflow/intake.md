@@ -2,14 +2,32 @@
 
 Bad advice comes from thin context. Every failure mode of a job-search counselor (irrelevant examples, missed avenues, wrong level, wrong timing) is cheaper to prevent here than to repair later. Do not search or advise until the profile below is filled in or knowingly marked unknown.
 
+## 0. Order of the intake (follow exactly)
+
+Questions are asked in as few rounds as possible, each thing **once**, and the confirmation is the **last** question of the intake, after everything it summarizes has been answered.
+
+1. **Read** the resume and any shared files (section 1). Do not ask anything yet.
+2. **Round 1, one question call (up to four questions):** the goal (section 3, multi-select with "I'll describe it myself"), what they want their days to look like (section 3b), the scope of the job list (role family, type, size; section 4), and the advice report choice (none, quick, full; section 4). Skip any the person already answered.
+3. **Round 2, one question call, only for facts the resume and round 1 did not settle:** location and work mode, work authorization, exclusions and active pipelines, earliest start if unclear, search depth (lite, standard, deep; section 5b), and the optional interview history (section 1). Ask only what is still unknown. If nothing is unknown, skip the round.
+4. **At most two follow-ups** the answers make necessary (the table in section 3), each about a **different** matter than any question already asked. Never restate the goal question or ask it in other words.
+5. **Final confirmation, alone and last:** build the profile card (section 2) from everything answered so far, **with every field filled in**, and ask the single question "Is this accurate?" Mark a field `not specified` only when the person declined to answer it; never show a placeholder such as `[unknown]` or ask for confirmation while fields are still unanswered. If the card shows a goal-fit mismatch (section 3b) it is one line on the card.
+6. **Then** the permission note (section 6) and the search.
+
+Hard limits: the goal is asked exactly once in the whole intake. Keep a running list of what has been answered and never ask for it again, in the same words or different ones. A confirmation that appears before the later questions, or inside a batch with other questions, is a bug.
+
 ## 1. Read everything first
 
 - Read the resume in full, in whatever format it comes (PDF, DOCX, YAML, pasted text, LinkedIn export). Extract: degrees and dates, internships and full-time roles, management scope, research and publications, projects, certifications and licenses, the stack or toolset, languages spoken, and signals of community presence (open source, writing, talks, portfolio).
 - Use whatever file-reading capability the host offers. Do not assume a resume tool or schema.
 - Ask once whether anything lives outside the document (older CV, unpublished work, side projects, things not written down).
-- **Ask for evidence of what has already worked.** Ask them to share any postings that led to interviews or callbacks, and any application tracker (CSV, spreadsheet, notes), or paste the titles, companies and outcomes. This is the best calibration there is: it shows which titles, employer sizes, locations and levels already accept this resume. Mine it for title patterns (for example "Junior", "Associate", "Engineer I"), employer size and type, location, and stated requirements, and weight the search toward that pattern instead of toward what is merely popular. It is optional; accept "none" and move on. If nothing is shared, say the calibration rests on the resume alone.
+- **Ask for evidence of what has already worked, and how each interview came about.** Ask them to share any postings that led to interviews or callbacks, and any application tracker (CSV, spreadsheet, notes), or paste the titles, companies and outcomes. For each interview, the useful extras are the **route** (cold application, recruiter reached out, referral, event or community, other) and whether they were **targeting** that role or it was incidental. A pasted list or tracker is the easiest form; partial answers are fine. Ask it once, optionally, in round 2 (section 0).
+  - **Weight by route.** Cold applications and recruiter outreach are the strongest evidence of what the resume passes: mine them for title patterns (for example "Junior", "Associate", "Engineer I"), employer size and type, location, stated requirements, and which stretch roles are realistic, and weight the search toward that pattern. **Referral interviews** show the level people were willing to put the person forward for, not what the resume clears cold; do not copy the referrers' employers into the target list, and use the referrers as an avenue ("warm contacts you already have": who to ask for intros at the new targets). **Incidental interviews** show what the person can get, not what they want; they never override the stated goal. Ask whether any were actually appealing.
+  - **Use outcomes.** Repeated cold rejections at one role type mean adjust the target or the resume before widening the search.
+  - **State the weighting** in the report's Notes. With fewer than about three cold or recruiter data points, say the calibration rests mostly on the resume and the rubric. It is optional; accept "none" and say so.
 
-## 2. Profile to build (state it back in 3 to 5 lines for confirmation)
+## 2. Profile to build: the final card (step 5 of section 0)
+
+Do not interrogate. After every round of questions is answered (section 0), build the profile below as a **short card of 5 to 7 lines**, fully filled in from the resume and the answers, and ask **one question, by itself, through the question tool: "Is this accurate?"** with the options *Yes, go*, *Mostly, fix these lines* (free text), and *No, let me describe it myself*. The person corrects only what is wrong. Label each line **from resume**, **from your answer** or **inferred**. The card never contains an unanswered field: anything that changes the search (goal, location, work authorization, exclusions) was asked in round 1 or 2 before the card, and the goal is never filled in from the resume. Never pre-fill an ambition level, and keep the option-calibration rules in section 3 for any goal line. The card carries the goal-fit line from section 3b when it applies. The interview-history ask is part of round 2, not the card. The confirmed card is the profile block for the run notes.
 
 | Field | Source |
 |---|---|
@@ -24,7 +42,7 @@ Bad advice comes from thin context. Every failure mode of a job-search counselor
 
 ## 3. The goal question (always asked)
 
-Ask what the person wants out of the search, strictly through the host's structured question tool when one exists (see section 5). Do not ask it as conversational chat text when the question tool is available. The question is open in meaning; the options only make it fast to answer, and the person is explicitly invited to write the goal in their own words. Ask the goal on its own first when the person has pushed back on questions before; the remaining intake questions follow once the goal is known.
+Ask what the person wants out of the search, strictly through the host's structured question tool when one exists (see section 5). Do not ask it as conversational chat text when the question tool is available. The question is open in meaning; the options only make it fast to answer, and the person is explicitly invited to write the goal in their own words. The goal is asked once, in round 1; if the person has pushed back on questions before, ask the goal alone first and put the rest of round 1 in the next call. Never ask it again.
 
 Goal options must be the things people actually set out to do, not abstract optimization targets ("pay vs brand", "speed to offer" are not goals most people hold). Pool to draw from; show the 4 most plausible for this resume, keep free text open, and make the question multi-select because goals combine:
 
@@ -66,6 +84,19 @@ After the answer, ask at most two follow-ups the answer makes necessary, again a
 | Location or visa | The fixed constraints |
 | Vague or "not sure" | Two or three contrasting archetypes, one sentence each |
 
+## 3b. What the days look like, and the goal-fit check
+
+Ask one short question about **work content**, separate from the goal archetype: "What do you want your days to look like?" Options come from the resume (for example frontend or UI work, full-stack product work, data or ML, infrastructure, research, a mix), multi-select, free text always open. It goes in the same question batch as the goal.
+
+Then compare what they **chose** (sector, employer type, company size, level, location, role family) with what they **want to do** (work content, their own words, the resume) using the lookup in [`avenue_map.md`](../knowledge/avenue_map.md) section E2. Raise a challenge **only when there is a concrete mismatch**, for example:
+- the sector is known for different work than the person wants (government or defense versus frontend or product work),
+- the level or title sits above or below the calibrated band,
+- the location or work mode conflicts with a stated constraint,
+- the company size or stage conflicts with a stated risk or stability preference,
+- the field needs a credential or clearance they lack.
+
+When it triggers, put it on the profile card as **one sentence of evidence plus two or three closer routes with their honest trade-offs** (for the government example: agency digital-service and modernization teams, civic-tech organizations, government contractors, state and local web teams), and let the person answer **keep my plan / switch to that / do both**. The person decides; the skill never overrides and never filters out the stated choice. **At most one challenge per run**, no repeated pushback, and when the chosen path fits the goal say so in one line and move on. If the person keeps their path, the plan follows it and the alternative is mentioned once in Notes.
+
 ## 4. Scope of the job list and the advice report
 
 Ask what the job list should contain, because "what the user asked for" defines it:
@@ -76,7 +107,7 @@ Ask what the job list should contain, because "what the user asked for" defines 
 - Specific companies, funds, or sectors they want covered.
 - **Adjacent and stepping-stone roles.** Ask once whether they are open to contract, QA or test, support, IT, or other adjacent roles. Frame it honestly: these can be a way in, especially contract, but QA and similar roles can slow a path to software engineering, more so for someone who already held an SWE role. Default is **no**: aim at roles that move the career forward, and include adjacent ones only if they say yes or ask for them, and only after they pass [`trajectory_test.md`](../knowledge/trajectory_test.md). In lite mode do not ask this question; adjacent roles are not offered in lite.
 
-- **Whether they also want a separate career-advice report** (avenues in priority order, when unopened companies open, a short plan) alongside the job list. Ask it as a yes/no choice. The job list is always produced; the advice report only if they say yes. **Describe it honestly as more than a summary**, so it is not skipped as filler: it covers ways to find jobs beyond applying to postings (for example contacting the authors of work theirs builds on, upstream contributions, companies that build with their exact stack, programs that feed teams, and one small thing to build for a target), tailored to specific items on their resume; when companies they care about are expected to open; and a short dated plan. Example wording: "Want a short advice report too? It lists creative ways to get in front of teams that go beyond applying to postings, based on your specific projects, plus when the companies you care about open."
+- **Whether they also want a separate career-advice report** (avenues in priority order, when unopened companies open, a short plan) alongside the job list. Ask it as a choice among **no advice report**, **quick** (the top three avenues and a one-week plan) and **full** (the whole ranked map). Default to quick when the person writes short answers or says they feel overwhelmed. The job list is always produced; the advice report only if they ask for it. **Describe it honestly as more than a summary**, so it is not skipped as filler: it covers ways to find jobs beyond applying to postings (for example contacting the authors of work theirs builds on, upstream contributions, companies that build with their exact stack, programs that feed teams, and one small thing to build for a target), tailored to specific items on their resume; when companies they care about are expected to open; and a short dated plan. Example wording: "Want a short advice report too? It lists creative ways to get in front of teams that go beyond applying to postings, based on your specific projects, plus when the companies you care about open."
 
 If the user already stated these, do not re-ask.
 

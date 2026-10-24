@@ -23,10 +23,13 @@ Everything below serves those two rules.
 3. `career_advice.md` has exactly four sections (named companies, avenues, plan, notes), plain headings, no resume recap, no candidate name, no extra "evaluation" sections.
 4. An avenue is a channel or way to reach hiring people (boards, outreach, communities, upstream work), never "apply to these employers" or "filter LinkedIn for X". Open reqs go in the job list.
 5. Intake options are calibrated honestly, include a low-pressure goal, and are never marked recommended.
-6. Ask for evidence of what has worked (postings that led to interviews, an application tracker) and search the shape it shows.
+6. Ask for evidence of what has worked (postings that led to interviews, an application tracker) and how each interview came about. Weight by route: cold and recruiter-sourced interviews show what the resume passes; referral interviews calibrate level and name warm contacts, they are not proof of what the resume passes cold; incidental interviews never override the stated goal.
 7. Match board categories to the calibrated band: new-grad trackers only for people inside a graduation window; junior / entry-level / early-career boards and "Junior", "Associate", "Engineer I/II" titles for people beyond it; AI/ML and senior boards for experienced people. Never overfit on one board.
 8. Aim for roles that move the career forward. Contract, QA, support and similar roles go only in a labeled stepping-stone table with the trade-off stated, and only if the person opted in; never as padding. Each goes through `references/knowledge/trajectory_test.md` (standard and deep only; lite offers none).
 9. Excluded companies appear nowhere: not in the list, the watch list, "not listed and why", or advice.
+10. A page you cannot read is not a closed posting. Blocked, bot-walled and client-rendered pages go through the ladder in `references/workflow/verification.md` (embedded data and the ATS's JSON first, then a browser tool or `scripts/verify/render_page.py`), and whatever still cannot be read goes in the capped "Could not machine-check" section, never labeled verified or closed. Never ask the person to paste pages. Never install anything unasked: when a run hit unreadable pages and the host can run commands, offer the optional browser install once (what, why, size, where, how to remove) as described in `verification.md`, and never in a browser-only host or in lite mode.
+11. Confirm the profile instead of interrogating: ask each thing once (the goal exactly once), then show a fully filled card as the last question, alone, with no placeholders, and ask "Is this accurate?", and check once whether the chosen sector actually serves the work they want (offer closer routes, let them decide, never override).
+12. Keep reports short and personal: a quick report is the top three avenues and a one-week plan, a full report adds the rest; start with what the person said; end `job_list.md` with a "Where I looked" block of every source tried, including ones that returned nothing or were blocked.
 
 ## Output contract
 
@@ -45,8 +48,8 @@ No JSON snapshots, indexes, dossiers, or cache files. Section-by-section specs, 
 
 Follow [`references/workflow/intake.md`](references/workflow/intake.md):
 - Read the resume fully; ask once for anything outside it.
-- Build and confirm the profile: calibrated band ([`leveling-rubric.md`](references/knowledge/leveling-rubric.md)), core spike, availability and hiring channel ([`hiring-channels.md`](references/knowledge/hiring-channels.md)), location and work authorization, exclusions and active pipelines (with parents/subsidiaries), and current-employer constraints if employed.
-- **Ask the goal question**: what does the user most want out of this search? Add at most two follow-ups the answer requires.
+- Follow the intake order in `intake.md` section 0: read, round 1 questions (goal, days, scope, report), round 2 only for what is still unknown, then the profile card as the very last question. Profile: calibrated band ([`leveling-rubric.md`](references/knowledge/leveling-rubric.md)), core spike, availability and hiring channel ([`hiring-channels.md`](references/knowledge/hiring-channels.md)), location and work authorization, exclusions and active pipelines (with parents/subsidiaries), and current-employer constraints if employed.
+- **Ask the goal question** (what does the user most want out of this search?) together with what they want their days to look like. Add at most two follow-ups the answer requires. Run the goal-fit check once (`intake.md` section 3b).
 - If they only picked preset goal options, warn once that a goal in their own words gives better results and invite one before searching.
 - Ask what the job list should contain (role family, type, size, named companies or sectors), and whether they also want a separate career-advice report.
 - Ask lite, standard, or deep search. Lite (`references/workflow/lite_mode.md`) is a cheap run of about 8 tool calls with fewer sources and partial verification; deep takes longer (`references/workflow/deep_search.md`). In lite, follow `lite_mode.md` and skip the longer steps below that it narrows.
@@ -68,7 +71,7 @@ Follow [`references/workflow/verification.md`](references/workflow/verification.
 - **Check 2**: level fits the calibrated band (whatever it is); no invented internal level codes.
 - **Check 3**: hiring channel and timing fit the user's availability.
 
-`scripts/verify/verify_jobs.py` automates Checks 1 and 2 (pass the band with `--max-yoe`, and `--allow-titles` / title regexes from intake; there are no defaults that assume entry level) and the exclusion and earlier-run filters. Check 3 is your judgment from the full text (`scripts/verify/fetch_job_text.py`). The script reads Workday postings through their JSON detail endpoint, rejects aggregator shell pages and ATS error redirects, and scans the full text for stated years of experience. It still cannot render client-side portals (it reports a `manual_verify_hint`), and its `channel_hint` is only a hint, so read the page when a verdict looks wrong.
+`scripts/verify/verify_jobs.py` automates Checks 1 and 2 (pass the band with `--max-yoe`, and `--allow-titles` / title regexes from intake; there are no defaults that assume entry level) and the exclusion and earlier-run filters. Check 3 is your judgment from the full text (`scripts/verify/fetch_job_text.py`). The script reads Greenhouse, Lever, Ashby, SmartRecruiters, Workable, Workday, Oracle HCM and Microsoft postings through their public JSON, reads embedded page data, rejects aggregator shell pages and ATS error redirects, and scans the full text for stated years of experience. Pages that block automated fetches or render client-side are retried in a browser when Playwright is installed (`--render`, see `scripts/verify/render_page.py`); otherwise they come back as `verification_tier: could_not_machine_check`, which is not the same as closed. Its `channel_hint` is only a hint, so read the page when a verdict looks wrong.
 
 ### 5. Write the documents
 
@@ -85,10 +88,10 @@ references/
     avenue_map.md  hiring-channels.md  leveling-rubric.md  trajectory_test.md
   sources/                       where to look and what to do when tools fail
     github_job_boards.md  sources_and_fallbacks.md
-scripts/                         standard library only; run doctor.py first
+scripts/                         standard library only; run doctor.py first; setup_optional.py is the opt-in browser install
   doctor.py                      what works in this environment
   discover/                      fetch_job_boards.py  fetch_github_boards.py  fetch_jobspy.py (optional)
-  verify/                        verify_jobs.py  fetch_job_text.py
+  verify/                        verify_jobs.py  fetch_job_text.py  render_page.py (optional)
   lib/                           _common.py  prior_jobs.py
 ```
 

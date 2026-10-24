@@ -22,6 +22,7 @@ About **8 tool calls in total**, including intake file reads. Stop when the budg
 - One batch run of `verify_jobs.py` over the top 10 to 15 candidates by fit (set `--max-yoe` and `--allow-titles` from the calibrated band as usual). Rows that pass go in "Apply now".
 - Candidates not fetched are **not** listed as verified. Put at most 10 of them under a separate heading, "Unchecked leads (from the tracker, not fetched)", with the tracker as the source, and tell the reader to confirm each is open before applying.
 - Do not skip the exclusion filter or the level check.
+- Pages that were blocked or client-rendered: run `verify_jobs.py` with `--render off` unless Playwright is already available, and put whatever could not be read in the capped "Could not machine-check" section (at most 10). Do not spend extra tool calls on them, and do not offer the optional browser install in lite.
 
 ## Advice report in lite (only if they said yes)
 
@@ -40,4 +41,7 @@ Lite does not run the trajectory test (`trajectory_test.md`), so it does not off
 - Honor exclusions everywhere.
 - Label unfetched rows honestly (above).
 - Use the Source column truthfully.
+- Keep the "Where I looked" block, one compact line per source.
+- Profile: one question call for the goal, location and work authorization, exclusions and the advice report choice, then the filled card as the last question ("Is this accurate?"); the goal-fit check is a one-sentence note on the card only when a concrete mismatch exists, with no extra questions.
+- The advice report is quick (top three avenues, one-week plan).
 - State at the top of `job_list.md` that this is a lite run with partial verification.

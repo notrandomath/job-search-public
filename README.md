@@ -3,7 +3,6 @@
 A job-search counselor skill. It reads your resume, asks what you want, and produces a verified job list and, if you ask, a short advice report.
 
 Needs an agent that supports skills and can run Python 3 with web access.
-
 ## Load it
 
 **Google Antigravity CLI (Free):** copy `job-search/` to `<project>/.agent/skills/` (or `~/.gemini/antigravity/skills/`).

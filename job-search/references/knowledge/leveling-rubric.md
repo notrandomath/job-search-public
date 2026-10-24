@@ -57,3 +57,7 @@ Important: a few weeks of research with no publication should be tiered like a s
 - **PhD or postdoc moving to industry:** map research years to a band by independence and impact (first-author work, shipped systems, grants or leadership of a project), not by years alone. Many industry research and applied-science ladders place a fresh PhD above entry level; verify against the target employer's own ladder.
 - **Returning after a gap:** judge by prior experience and recency of skills; do not penalize the gap itself.
 - **Self-employed or founder experience:** translate scope (team size, revenue, systems shipped) into employer terms; do not treat it as zero tenure.
+
+## Interview history is evidence of level, not of what the resume passes cold
+
+Weight each past interview by how it came about. Cold applications and recruiter outreach show what a screener let through, so they set the title pattern and band. Referral interviews show the level people were willing to put the person forward for, but a referral can carry a resume past a screen it would not clear alone, so do not treat referral interviews as proof of what the resume passes cold, and do not copy the referrers' employers into the target list. Interviews for roles the person was not targeting show what they can get, not what they want. With fewer than about three cold or recruiter data points, say the calibration rests mostly on the resume and this rubric.

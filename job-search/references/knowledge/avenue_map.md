@@ -14,7 +14,12 @@ Names below are illustrative seeds, not authoritative or current. Verify before 
 | Hardware, semiconductor, systems vendors | accelerator, compiler, driver, networking teams | systems / ML infra spike |
 | Finance and quant | quant research / trading / fintech engineering | comp-driven, math or systems strength |
 | Non-tech-first large employers | healthcare, automotive, robotics, defense, energy, bio | domain pivot or location bound |
-| Government, national labs, public research | national labs, research agencies, FFRDCs | research flavour, stability, clearance-eligible |
+| Federal civilian agencies and their digital teams | agency digital-service and modernization teams, central digital-service programs | public-interest product or web work, stability; US work authorization usually required |
+| Civic-tech organizations and fellowships | civic-tech nonprofits, tech-in-government fellowships | public-interest work, product or web skills, mission-driven teams |
+| Government contractors | firms that build and run agency systems (including small agile contractors) | government-facing work without a federal hire process; clearance and citizenship often required |
+| State and local government | state, city and county technology and web teams | local roles, web or product work, steadier hours |
+| National labs, FFRDCs, public research | national labs, research agencies | research flavour, stability, clearance-eligible |
+| Non-profits and NGOs | mission-driven organizations with engineering teams | mission over pay, smaller teams |
 | Academia-adjacent | research engineer in a university lab, PhD route as an alternative | research goal, publication record |
 
 ## B. Startup and venture avenues (do not omit for any startup-leaning goal)
@@ -49,6 +54,7 @@ Names below are illustrative seeds, not authoritative or current. Verify before 
 
 | Avenue | Concrete forms |
 |---|---|
+| Warm contacts you already have | people who referred or interviewed you before, former managers, colleagues now at the targets; who to ask for intros and what to say, built from the person's own interview history | the person shared an interview history or referrals |
 | Alumni, colleagues, and lab network | former colleagues and managers, advisors and labs, school or program alumni now at targets; search recipes built from the person's real history |
 | Referrals | who can refer, how to ask, what to attach |
 | Conferences and workshops | specific venues in the field with career events, sponsor lists, submission deadlines |
@@ -65,6 +71,20 @@ Names below are illustrative seeds, not authoritative or current. Verify before 
 - Internal transfers or return-offer conversion for someone already employed.
 - Starting something, when the goal answer points that way.
 
+## E2. Work content to channel (contestable, use to check goal fit)
+
+The sector a person names is not always where the work they want lives. Use this to check, then ask; never override.
+
+| Work the person wants | Channels and sectors that carry it most often |
+|---|---|
+| Frontend, UI, design systems | product companies and startups, agencies and consultancies, civic-tech and agency digital-service teams, e-commerce and media; rarely defense or research labs |
+| Full-stack product | startups and growth-stage companies, civic-tech and agency digital teams, agencies and consultancies, mid-size product companies |
+| Data and analytics | finance, health, government statistical agencies, product companies, research orgs |
+| ML and applied research | AI labs, big tech research, national labs, universities, startups with ML cores |
+| Infrastructure and platform | large tech, cloud providers, fintech, defense and government contractors |
+| Systems and embedded | hardware vendors, automotive, aerospace, defense, robotics |
+| Security | government and contractors (clearance helps), finance, big tech, security vendors |
+
 ## F. Fit map: goal to avenues
 
 | Goal archetype | Must cover | Usually skip |
@@ -78,6 +98,7 @@ Names below are illustrative seeds, not authoritative or current. Verify before 
 | Employed and discreet | D referrals via trusted contacts, C recruiters, A open reqs | public networking posts, anything that tips off the current employer |
 | Non-tech or non-engineering field | the field's own boards and societies (C), A employers in that sector, D | tech-specific trackers and ATS sweeps |
 | Any offer by a date | C, A broad sweep, B boards, D referrals | long-lead research programs |
+| Government, lab, or non-profit | the sub-route that matches the work they want (see A and E2), D warm contacts, C boards for public service | routes that need a clearance or citizenship the person lacks |
 | Visa / location bound | filter A and B by sponsorship and location first, then E remote | companies that never sponsor |
 
 ## Resume-derived avenue generator

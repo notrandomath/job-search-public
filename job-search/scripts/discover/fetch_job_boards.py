@@ -218,13 +218,13 @@ def main():
             for slug in args.slugs:
                 try:
                     results.extend(fn(slug))
-                except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, json.JSONDecodeError) as e:
+                except Exception as e:  # network resets, SSL errors and bad JSON must not abort the sweep
                     errors.append(f"{src}/{slug}: {e}")
         elif src in SOURCE_FUNCS_KEYWORD:
             fn = SOURCE_FUNCS_KEYWORD[src]
             try:
                 results.extend(fn(args.keywords))
-            except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, json.JSONDecodeError) as e:
+            except Exception as e:
                 errors.append(f"{src}: {e}")
 
     # Keyword filter for slug-based sources (greenhouse/lever/ashby return everything for a company)

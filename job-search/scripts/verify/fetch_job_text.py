@@ -104,10 +104,74 @@ def fetch_greenhouse_api(board, job_id):
         md_text += clean_html_to_markdown(content)
         return md_text
 
+def fetch_workday_text(url):
+    """Workday pages are client-rendered shells; read the public cxs detail JSON instead."""
+    import urllib.parse
+    p = urllib.parse.urlsplit(url)
+    m = re.match(r"^/(?:[a-z]{2}-[A-Za-z]{2}/)?([^/]+)/(?:details|job)/(.+)$", p.path)
+    if not m or "myworkdayjobs.com" not in p.netloc:
+        return None
+    tenant, site, rest = p.netloc.split(".")[0], m.group(1), m.group(2)
+    req = urllib.request.Request(f"https://{p.netloc}/wday/cxs/{tenant}/{site}/job/{rest}",
+                                 headers=dict(HEADERS, Accept="application/json"))
+    with open_url(req, timeout=15) as resp:
+        info = (json.loads(resp.read().decode("utf-8")).get("jobPostingInfo")) or {}
+    if not info:
+        return None
+    md = f"# {info.get('title', '')}\n**Location**: {info.get('location', '')}\n"
+    md += f"**Posted**: {info.get('startDate', '')}\n**Can apply**: {info.get('canApply')}\n\n---\n\n"
+    return md + clean_html_to_markdown(info.get("jobDescription", ""))
+
+
+def _find_key(obj, key):
+    if isinstance(obj, dict):
+        if key in obj:
+            return obj
+        for v in obj.values():
+            r = _find_key(v, key)
+            if r:
+                return r
+    elif isinstance(obj, list):
+        for v in obj:
+            r = _find_key(v, key)
+            if r:
+                return r
+    return None
+
+
+def apple_text(raw_html):
+    """Apple's careers pages embed the posting in window.__staticRouterHydrationData."""
+    m = re.search(r'__staticRouterHydrationData\s*=\s*JSON\.parse\("(.*?)"\);', raw_html, re.DOTALL)
+    if not m:
+        return None
+    try:
+        job = _find_key(json.loads(json.loads('"' + m.group(1) + '"')), "jobSummary")
+    except Exception:
+        return None
+    if not job:
+        return None
+    md = f"# {job.get('postingTitle', '')}\n**Posted**: {job.get('postingDate', '')}\n\n---\n\n"
+    for label, key in (("Summary", "jobSummary"), ("Description", "description"),
+                       ("Minimum qualifications", "minimumQualifications"),
+                       ("Preferred qualifications", "preferredQualifications")):
+        if job.get(key):
+            md += f"## {label}\n{job[key]}\n\n"
+    return md.strip()
+
+
 def fetch_job_text(url):
     """Fetches job description text directly from URL or ATS API."""
     url = url.strip()
-    
+
+    # 0. Workday (client-rendered shell; use the public cxs JSON)
+    if "myworkdayjobs.com" in url:
+        try:
+            text = fetch_workday_text(url)
+            if text:
+                return text
+        except Exception:
+            pass
+
     # 1. Check for Greenhouse URLs
     gh_match = re.search(r'(?:boards|job-boards)\.greenhouse\.io/([^/]+)/jobs/(\d+)', url)
     if gh_match:
@@ -134,6 +198,10 @@ def fetch_job_text(url):
     with open_url(req, timeout=15) as resp:
         raw_html = resp.read().decode('utf-8', errors='ignore')
         
+        apple = apple_text(raw_html)
+        if apple:
+            return apple
+
         # Check if Ashby window.__appData embedded
         ashby_match = re.search(r'window\.__appData\s*=\s*(\{.*?\});', raw_html, flags=re.DOTALL)
         if ashby_match:

@@ -34,6 +34,27 @@ Public JSON endpoints, fetchable by any HTTP tool or a browser:
 | Workday | page `https://<tenant>.wd<N>.myworkdayjobs.com/<site>/job/...`; detail JSON at `/wday/cxs/<tenant>/<site>/job/<path>` (the HTML page is a client-rendered shell) |
 | Tracker repo | `https://raw.githubusercontent.com/<owner>/<repo>/<branch>/README.md` (try `main`, `dev`, `master`) |
 
+## Platform endpoints (single postings behind client-rendered pages)
+
+Tested against live postings. Each returns the posting's title, location, date and description as JSON from a plain fetch, so they work without scripts or a browser. `<...>` values come from the posting URL. A 404, or an id missing from the board, means the posting is gone. `totalFound: 0` or an empty board usually means a wrong slug or company id (ids can be case-sensitive), not a closed company.
+
+| Platform (URL shape) | Endpoint |
+|---|---|
+| Greenhouse (`boards.greenhouse.io/<slug>/jobs/<id>`, `gh_jid=<id>`) | `GET boards-api.greenhouse.io/v1/boards/<slug>/jobs/<id>` |
+| Lever (`jobs.lever.co/<slug>/<uuid>`) | `GET api.lever.co/v0/postings/<slug>/<uuid>`; board: `?mode=json` |
+| Ashby (`jobs.ashbyhq.com/<slug>/<uuid>`) | `GET api.ashbyhq.com/posting-api/job-board/<slug>` (every live posting, with `descriptionHtml` and `isListed`); a posting not in the list is closed |
+| SmartRecruiters (`jobs.smartrecruiters.com/<Company>/<id>-...`) | `GET api.smartrecruiters.com/v1/companies/<Company>/postings/<id>` |
+| Workable (`apply.workable.com/<slug>/j/<SHORTCODE>/`) | `GET apply.workable.com/api/v2/accounts/<slug>/jobs/<SHORTCODE>`; board: `GET /api/v1/widget/accounts/<slug>` |
+| Workday (`<tenant>.wd<N>.myworkdayjobs.com/<lang>/<site>/job/<path>`) | `GET <host>/wday/cxs/<tenant>/<site>/job/<path>`; board: `POST <host>/wday/cxs/<tenant>/<site>/jobs` with `{"limit":20,"offset":0,"searchText":""}` |
+| Oracle HCM (`<host>/hcmUI/CandidateExperience/<lang>/sites/<site>/job/<id>`) | `GET <host>/hcmRestApi/resources/latest/recruitingCEJobRequisitionDetails?onlyData=true&finder=ById;Id="<id>",siteNumber=<site>` |
+| Microsoft careers (`apply.careers.microsoft.com/careers/job/<id>`) | `GET apply.careers.microsoft.com/api/pcsx/position_details?position_id=<id>&domain=microsoft.com&hl=en` (the PCSX API is not enabled for every Eightfold tenant; a 403 means try the page or a browser) |
+| Apple (`jobs.apple.com/en-us/details/<id>`) | Plain fetch **following redirects**; the posting is embedded in `window.__staticRouterHydrationData` |
+| Any page | `application/ld+json` `JobPosting` in the raw HTML (Workday, Ashby, SAP-style sites often include it) |
+
+Not yet tested, so no endpoint is claimed: Taleo, iCIMS, Phenom, SuccessFactors-hosted career sites. For those, and for custom portals, use a browser tool or `render_page.py`.
+
+Some sites sit behind bot checks that a hidden browser cannot pass (Uber was one). `render_page.py` retries those in a visible Chrome window when you allow it (`--render headed`).
+
 ## 3. Capability fallbacks
 
 Use the first column that matches what the host can do. Every fallback keeps the same verification rule: a role is listed as verified only if its own page was fetched.

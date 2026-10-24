@@ -49,6 +49,19 @@ def main():
         print("OK       certifi present")
     except ImportError:
         print("NOTE     certifi absent: system certificates are used, with an unverified retry on cert errors")
+    try:
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'verify'))
+        import render_page
+        av = render_page.availability()
+        if av["playwright"] and (av["cached_chromium"] or av["installed_chrome"]):
+            how = "installed Chrome" if av["installed_chrome"] else "cached Chromium"
+            print(f"OK       Playwright and a browser ({how}) for client-rendered pages (optional; scripts/verify/render_page.py)")
+        elif av["playwright"]:
+            print("MISSING  a Chromium or Chrome for Playwright (optional): client-rendered pages go to 'could not machine-check'")
+        else:
+            print("MISSING  Playwright (optional): client-rendered pages use embedded data / ATS JSON first, then a host browser tool. Opt-in install: python3 scripts/setup_optional.py --check")
+    except Exception:
+        print("NOTE     render_page.py not checked")
     for name, url, use in CHECKS:
         r = probe(url)
         if r == 200:

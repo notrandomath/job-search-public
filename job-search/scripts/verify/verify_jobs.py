@@ -18,6 +18,7 @@ import urllib.error
 import urllib.request
 import os as _os, sys as _sys
 _sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), '..', 'lib'))
+_sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
 from _common import open_url, setup_stdio
 
 USER_AGENT = "Mozilla/5.0 (compatible; job-search-skill/1.0)"
@@ -27,16 +28,17 @@ setup_stdio()
 
 SENIOR_TITLE_RE = re.compile(
     r"\b(?:senior|sr\.?|staff|principal|lead|manager|director|vp|head of)\b", re.IGNORECASE)
+BLOCKED_STATUSES = (401, 403, 406, 429, 451, 503, 999)  # the site refused the fetch; not evidence of closure
 KNOWN_SHELL_HOSTS: list[str] = []  # set with --shell-hosts; shell pages are also detected generically below
 COHORT_RE = re.compile(
     r"new\s+(?:college\s+)?grad|university\s+grad|early\s+career|campus|graduate\s+program|"
     r"emerging\s+talent|class\s+of\s+20\d\d|20\d\d\s+(?:start|cohort|graduat)|recent\s+grad", re.IGNORECASE)
 # "5+ years ... experience", "3-5 years of professional experience", "experience: 4+ years"
 YOE_FWD_RE = re.compile(
-    r"(\d{1,2})\s*(?:\+|plus|-\s*\d{1,2}|to\s*\d{1,2}|or\s+more)?\s*(?:years?|yrs?)\b[^.\n]{0,60}?experience",
+    r"(\d{1,2})\s*(?:\+|plus|[-–]\s*\d{1,2}|to\s*\d{1,2}|or\s+more)?\s*(?:years?|yrs?)\b[^.\n]{0,60}?experience",
     re.IGNORECASE)
 YOE_REV_RE = re.compile(
-    r"experience[^.\n]{0,40}?(\d{1,2})\s*(?:\+|plus|-\s*\d{1,2}|to\s*\d{1,2})?\s*(?:years?|yrs?)\b",
+    r"experience[^.\n]{0,40}?(\d{1,2})\s*(?:\+|plus|[-–]\s*\d{1,2}|to\s*\d{1,2})?\s*(?:years?|yrs?)\b",
     re.IGNORECASE)
 
 
@@ -92,12 +94,29 @@ NEEDS_SPONSORSHIP = [False]  # set with --needs-sponsorship
 EQUIVALENT_RE = re.compile(r"or\s+(?:equivalent|related|relevant|comparable)|equivalent\s+(?:practical\s+|work\s+)?experience|in\s+lieu\s+of", re.IGNORECASE)
 
 
+NEGATED_BEFORE_RE = re.compile(r"\b(?:no|not|without|never|neither|nor)\b[^.]{0,25}$", re.IGNORECASE)
+NEGATED_AFTER_RE = re.compile(
+    r"^[^.]{0,30}?(?:not\s+(?:required|needed|necessary)|isn'?t\s+required|is\s+a\s+plus|preferred|optional|a\s+bonus)",
+    re.IGNORECASE)
+
+
+def _soft_mention(text, m):
+    """'No security clearance required', 'clearance preferred': mentioned, but not a requirement."""
+    return bool(NEGATED_BEFORE_RE.search(text[max(0, m.start() - 40): m.start()])
+                or NEGATED_AFTER_RE.search(text[m.end(): m.end() + 45]))
+
+
 def hard_requirements(text):
     out = {}
     for cat, rx in HARD_PATTERNS.items():
         m = rx.search(text or "")
         if not m:
             continue
+        if cat == "clearance" and _soft_mention(text, m):
+            others = [x for x in rx.finditer(text) if not _soft_mention(text, x)]
+            if not others:
+                continue
+            m = others[0]
         if cat == "degree_required":  # "or equivalent experience" makes a degree line soft: no knockout is expected
             ctx = text[max(0, m.start() - 120): m.end() + 120]
             if EQUIVALENT_RE.search(ctx):
@@ -106,13 +125,40 @@ def hard_requirements(text):
     return out
 
 
+NUMBER_WORDS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8,
+                "nine": 9, "ten": 10}
+NUMBER_WORD_RE = re.compile(
+    r"\b(" + "|".join(NUMBER_WORDS) + r")\b(?=\s*(?:\+|plus|[-–]\s*\w+|to\s*\w+|or\s+more)?\s*(?:years?|yrs?)\b)", re.IGNORECASE)
+HISTORY_BEFORE_RE = re.compile(r"(?:past|last|in business for|founded|established|for the)\s*$", re.IGNORECASE)
+
+
+def _overlapping(rx, text):
+    """Matches that may overlap, so a skipped history phrase cannot swallow the real requirement after it."""
+    pos = 0
+    while True:
+        m = rx.search(text, pos)
+        if not m:
+            return
+        yield m
+        pos = m.start() + 1
+
+
 def stated_min_yoe(text):
     """Return (lowest-bound years, matched phrase) for the highest stated requirement, or (None, '')."""
     best, phrase = None, ""
+    text = NUMBER_WORD_RE.sub(lambda mm: str(NUMBER_WORDS[mm.group(1).lower()]), text or "")
     for rx in (YOE_FWD_RE, YOE_REV_RE):
-        for m in rx.finditer(text):
+        for m in _overlapping(rx, text):
             n = int(m.group(1))
             if n >= 15:  # "20 years of experience" in company-history copy; ignore implausible requirement
+                continue
+            # The upper bound of a range ("0-2 years") is not a separate requirement.
+            if re.search(r"\d\s*(?:-|\u2013|to)\s*$", text[max(0, m.start() - 8): m.start()]):
+                continue
+            # Company-history copy is not a requirement: "over the past 12 years, we have grown; ... experience"
+            if HISTORY_BEFORE_RE.search(text[max(0, m.start() - 30): m.start()]):
+                continue
+            if re.search(r"[;]|\b(?:we|our|us)\b", m.group(0), re.IGNORECASE):
                 continue
             if best is None or n > best:
                 best, phrase = n, " ".join(m.group(0).split())[:90]
@@ -143,6 +189,80 @@ def fetch_workday(url, timeout=10):
     html_doc += "<button>Apply</button>" if can_apply else "<p>This job is not open for applications</p>"
     html_doc += "</body></html>"
     return 200 if info else 404, html_doc, url, info.get("startDate") or info.get("posted")
+
+def _json_get(url, timeout=10, data=None):
+    headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
+    if data is not None:
+        headers["Content-Type"] = "application/json"
+    req = urllib.request.Request(url, data=json.dumps(data).encode() if data is not None else None, headers=headers)
+    with open_url(req, timeout=timeout) as resp:
+        return json.loads(resp.read().decode("utf-8", errors="ignore"))
+
+
+def _synth(title, location, body, can_apply=True, posted=""):
+    """A plain document built from an ATS record, so the generic checks read the real posting text."""
+    import html as _h
+    doc = f"<html><body><h1>{_h.escape(title or '')}</h1><p>{_h.escape(str(location or ''))}</p>"
+    doc += f"<p>Posted {_h.escape(str(posted or ''))}</p>" if posted else ""
+    doc += f"{body or ''}"
+    doc += "<button>Apply</button>" if can_apply else "<p>This job is not open for applications</p>"
+    return doc + "</body></html>"
+
+
+def fetch_ats_json(url, timeout=10):
+    """Read the posting from its ATS's public JSON instead of the (often client-rendered) page.
+
+    Returns (status, document, final_url, posted) or None when the URL is not a supported platform.
+    A 404 or an id missing from the employer's own board is real evidence of closure: status 404."""
+    import html as _h
+    p = urllib.parse.urlsplit(url)
+    host, path = p.netloc.lower(), p.path
+    try:
+        m = re.match(r"^/([^/]+)/([0-9a-f]{8}-[0-9a-f-]{27})", path) if host == "jobs.lever.co" else None
+        if m:  # Lever
+            d = _json_get(f"https://api.lever.co/v0/postings/{m.group(1)}/{m.group(2)}", timeout)
+            body = d.get("description", "") + "".join(f"<h3>{x.get('text','')}</h3>{x.get('content','')}" for x in d.get("lists", []))
+            return 200, _synth(d.get("text"), (d.get("categories") or {}).get("location"), body + d.get("additional", ""), True), url, d.get("createdAt")
+        m = re.match(r"^/([^/]+)/([0-9a-f]{8}-[0-9a-f-]{27})", path) if host == "jobs.ashbyhq.com" else None
+        if m:  # Ashby: the board API lists every live posting with its description
+            for j in _json_get(f"https://api.ashbyhq.com/posting-api/job-board/{m.group(1)}", timeout).get("jobs", []):
+                if j.get("id") == m.group(2):
+                    return 200, _synth(j.get("title"), j.get("location"), j.get("descriptionHtml", ""), j.get("isListed", True), j.get("publishedAt")), j.get("jobUrl") or url, j.get("publishedAt")
+            return 404, "", url, None
+        m = re.match(r"^/([^/]+)/(\d+)", path) if host == "jobs.smartrecruiters.com" else None
+        if m:  # SmartRecruiters
+            d = _json_get(f"https://api.smartrecruiters.com/v1/companies/{m.group(1)}/postings/{m.group(2)}", timeout)
+            secs = (d.get("jobAd") or {}).get("sections") or {}
+            body = "".join(f"<h3>{v.get('title','')}</h3>{v.get('text','')}" for v in secs.values() if isinstance(v, dict))
+            loc = (d.get("location") or {}).get("fullLocation") or (d.get("location") or {}).get("city")
+            return 200, _synth(d.get("name"), loc, body, d.get("active", True), d.get("releasedDate")), url, d.get("releasedDate")
+        m = re.match(r"^/([^/]+)/j/([0-9A-Za-z]+)", path) if host == "apply.workable.com" else None
+        if m:  # Workable
+            d = _json_get(f"https://apply.workable.com/api/v2/accounts/{m.group(1)}/jobs/{m.group(2)}", timeout)
+            body = "".join(d.get(k) or "" for k in ("description", "requirements", "benefits"))
+            loc = d.get("location") or {}
+            return 200, _synth(d.get("title"), ", ".join(x for x in (loc.get("city"), loc.get("country")) if x), body, True, d.get("published")), url, d.get("published")
+        m = re.match(r"^/hcmUI/CandidateExperience/[^/]+/sites/([^/]+)/job/(\d+)", path)
+        if m and "oraclecloud.com" in host:  # Oracle HCM
+            d = _json_get(f"https://{host}/hcmRestApi/resources/latest/recruitingCEJobRequisitionDetails?onlyData=true"
+                          f"&finder=ById;Id=%22{m.group(2)}%22,siteNumber={m.group(1)}", timeout)
+            it = (d.get("items") or [None])[0]
+            if not it:
+                return 404, "", url, None
+            body = "".join(f"<h3>{k}</h3>{it.get(k) or ''}" for k in ("ExternalDescriptionStr", "ExternalQualificationsStr", "ExternalResponsibilitiesStr") if it.get(k))
+            return 200, _synth(it.get("Title"), it.get("PrimaryLocation"), body, True, it.get("ExternalPostedStartDate")), url, it.get("ExternalPostedStartDate")
+        m = re.match(r"^/careers/job/(\d+)", path) if host == "apply.careers.microsoft.com" else None
+        if m:  # Microsoft careers (Eightfold)
+            d = (_json_get(f"https://apply.careers.microsoft.com/api/pcsx/position_details?position_id={m.group(1)}&domain=microsoft.com&hl=en", timeout).get("data") or {})
+            if not d:
+                return 404, "", url, None
+            return 200, _synth(d.get("name"), ", ".join(d.get("locations") or []), d.get("jobDescription", ""), True, d.get("postedTs")), url, d.get("postedTs")
+    except urllib.error.HTTPError as e:
+        return e.code, "", url, None
+    except Exception:
+        return None
+    return None
+
 
 def fetch_url(url, timeout=10):
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
@@ -199,6 +319,25 @@ def extract_deep_content(raw_html):
         except Exception:
             pass
 
+    # 3b. Apple-style hydration state (window.__staticRouterHydrationData = JSON.parse("..."))
+    hyd = re.search(r'__staticRouterHydrationData\s*=\s*JSON\.parse\("(.*?)"\);', raw_html, re.DOTALL)
+    if hyd:
+        try:
+            state = json.loads(json.loads('"' + hyd.group(1) + '"'))
+            stack = [state]
+            while stack:
+                o = stack.pop()
+                if isinstance(o, dict):
+                    if "jobSummary" in o:
+                        extracted_parts.append(" ".join(str(o.get(k, "")) for k in (
+                            "postingTitle", "jobSummary", "description", "minimumQualifications", "preferredQualifications")))
+                        break
+                    stack.extend(o.values())
+                elif isinstance(o, list):
+                    stack.extend(o)
+        except Exception:
+            pass
+
     # 4. OpenGraph and meta description
     meta_matches = re.findall(r'<meta\s+(?:name|property)=["\'](?:og:description|description)["\']\s+content=["\'](.*?)["\']', raw_html, re.IGNORECASE)
     for m in meta_matches:
@@ -236,7 +375,8 @@ def is_dead_redirect(orig_url, final_url):
 
 ATS_HOST_RE = re.compile(
     r"(?:greenhouse\.io|ashbyhq\.com|lever\.co|myworkdayjobs\.com|smartrecruiters\.com|workable\.com|"
-    r"jobvite\.com|icims\.com|bamboohr\.com|recruitee\.com|teamtailor\.com|breezy\.hr|rippling\.com)$")
+    r"jobvite\.com|icims\.com|bamboohr\.com|recruitee\.com|teamtailor\.com|breezy\.hr|rippling\.com|"
+    r"oraclecloud\.com|eightfold\.ai|taleo\.net|successfactors\.(?:com|eu)|paylocity\.com|dayforcehcm\.com|ultipro\.com)$")
 EMPLOYER_HOSTS: list[str] = []  # extra hosts to treat as the employer's own (--employer-hosts)
 GH_ID_RE = re.compile(r"gh_jid=(\d+)")
 
@@ -274,7 +414,7 @@ def find_employer_link(raw, page_host, company):
     for u in urls:
         u = u.rstrip(".,;")
         h = _host(u)
-        if h == page_host or "dreamwork" in h:
+        if h == page_host:
             continue
         if is_ats_host(h) and re.search(r"/(?:[0-9a-f]{8}-[0-9a-f-]{27,}|\d{5,})", u):
             ats.append(u)
@@ -341,13 +481,14 @@ def _unconfirmed(job, url, status, reasons, extra=None):
                 "stated_min_yoe": None, "below_band": False, "senior_yoe_found": [],
                 "early_signals": [], "channel_hint": "unknown", "content_hash": "",
                 "manual_verify_hint": "Open the employer's own careers page and confirm the posting there",
-                "text_snippet": ""})
+                "text_snippet": "", "verification_method": "none", "verification_tier": "unconfirmed",
+                "client_rendered": False})
     if extra:
         res.update(extra)
     return res
 
 
-def analyze_job(job, max_yoe, band_min_yoe=None, _override=None, _aggregator_url=None):
+def analyze_job(job, max_yoe, band_min_yoe=None, _override=None, _aggregator_url=None, _browser=False):
     url = job.get("url")
     title = job.get("title", "")
     company = job.get("company", "")
@@ -376,10 +517,17 @@ def analyze_job(job, max_yoe, band_min_yoe=None, _override=None, _aggregator_url
                     f"Employer board '{slug}' does not list requisition {gh_id} (closed or removed)"],
                     {"aggregator_url": _aggregator_url} if _aggregator_url else None)
     wd = fetch_workday(url) if "myworkdayjobs.com" in host and not _override else None
+    ats = fetch_ats_json(url) if not _override and not wd else None
+    method = "page"
     if _override:
         status, raw_content, final_url = _override
+        method = "browser" if _browser else "employer-api"
     elif wd:
         status, raw_content, final_url = wd[0], wd[1], wd[2]
+        method = "ats-api"
+    elif ats:
+        status, raw_content, final_url = ats[0], ats[1], ats[2]
+        method = "ats-api"
     else:
         status, raw_content, final_url = fetch_url(url)
 
@@ -415,30 +563,49 @@ def analyze_job(job, max_yoe, band_min_yoe=None, _override=None, _aggregator_url
     expired_phrases = [
         "this job is no longer available", "position has been closed",
         "job has expired", "posting is no longer active",
-        "no longer accepting applications", "404 not found", "page not found",
+        "no longer accepting applications",
         "role does not exist or is no longer available", "position is closed"
     ]
+    # Generic error-page wording also shows up in footers and help text of live pages: count it only
+    # when the page is short or the phrase leads the page.
+    error_page_phrases = ["404 not found", "page not found"]
     waf_challenge_phrases = [
-        "cf-browser-verification", "turnstile", "just a moment...", "enable javascript to view"
+        "cf-browser-verification", "just a moment...", "enable javascript to view",
+        "performing security verification", "verify you are human", "verifying you are human",
+        "checking your browser before accessing", "attention required! | cloudflare",
+        "protect against malicious bots", "please complete the security check"
     ]
 
-    # Check expired phrases specifically on visible text (to avoid i18n dictionary false positives)
-    is_expired = any(p in visible_text.lower() for p in expired_phrases)
-    is_waf_block = any(p in visible_text.lower() for p in waf_challenge_phrases)
+    # Check phrases on visible text only (scripts stripped, to avoid i18n dictionary false positives)
+    vis = visible_text.lower()
+    is_expired = (any(p in vis for p in expired_phrases)
+                  or (any(p in vis for p in error_page_phrases)
+                      and (len(vis) < 1500 or any(p in vis[:600] for p in error_page_phrases))))
+    # A challenge page is short; a long live posting that merely mentions a captcha vendor is not blocked.
+    is_waf_block = len(vis) < 1500 and any(p in vis for p in waf_challenge_phrases)
     dead_redirect = is_dead_redirect(url, final_url)
     has_substance = len(clean_text) >= 300
 
-    # If URL contains requisition number, verify requisition exists in raw HTML
+    # If the URL carries a requisition number, the page should show it, or at least the posting's title.
+    # (Client-rendered pages often keep the id only in the URL, so a missing id alone is not evidence.)
     req_match = re.search(r'/details/(\d+)', url) or re.search(r'/jobs/(\d+)', url) or re.search(r'gh_jid=(\d+)', url)
     req_id_missing = False
     if req_match and raw_content:
         req_id = req_match.group(1)
-        if req_id not in raw_content:
+        title_words = [w for w in re.split(r"\W+", title.lower()) if len(w) > 2]
+        found = sum(w in clean_text.lower() for w in title_words)
+        title_present = bool(title_words) and found * 2 >= len(title_words)
+        if req_id not in raw_content and not title_present:
             req_id_missing = True
 
-    # Application channel signals
-    apply_signals = ["apply", "submit application", "job application", "application form", "submit resume"]
-    has_apply_channel = any(s in raw_content.lower() for s in apply_signals) if raw_content else False
+    # Application channel: apply wording in the visible and structured text, or an apply field/label in the
+    # page payload (client-rendered pages keep it there). Calls such as fn.apply(...) are not a channel:
+    # every script bundle contains them.
+    has_apply_channel = bool(
+        re.search(r"\b(?:apply|submit (?:your |an )?application|job application|application form|submit (?:your )?resume)\b",
+                  clean_text, re.IGNORECASE)
+        or re.search(r"(?<![.\w])apply(?![\w(])|applyurl|applicationurl|apply_url|directapply|\"applylink\"",
+                     raw_content or "", re.IGNORECASE))
 
     exists_and_non_empty = (
         (status == 200) and
@@ -475,18 +642,26 @@ def analyze_job(job, max_yoe, band_min_yoe=None, _override=None, _aggregator_url
     if not exists_and_non_empty:
         if is_shell_host:
             failure_reasons.append("Aggregator shell page (not the employer posting); follow it to the employer ATS")
+        elif status in BLOCKED_STATUSES:
+            failure_reasons.append(f"Blocked by the site (HTTP {status}); this is not evidence the role is closed")
+            manual_hint = "The site refused an automated fetch; check it through the employer's JSON endpoint, a browser tool, or by opening it"
+        elif status == 0:
+            failure_reasons.append("Could not reach the page (network error or timeout); not evidence the role is closed")
+        elif status == 404 and method == "ats-api":
+            failure_reasons.append("The employer's own job data no longer lists this posting (closed or removed)")
         elif status != 200:
             failure_reasons.append(f"HTTP Status {status} (Dead/Unreachable URL)")
         elif dead_redirect:
             failure_reasons.append(f"Dead Redirect (Redirected to generic portal: {final_url})")
         elif is_waf_block:
-            failure_reasons.append("WAF / Bot challenge detected")
+            failure_reasons.append("WAF / Bot challenge detected; not evidence the role is closed")
+            manual_hint = "The site served a bot-verification page; use a real browser tool or the employer's JSON endpoint"
+        elif is_expired:
+            failure_reasons.append("Page indicates job is expired / no longer available")
         elif not has_substance:
             failure_reasons.append("Empty page body (<300 characters)")
             if raw_content and "<script" in raw_content.lower():
                 manual_hint = "Client-rendered page; open it in a browser or find its JSON endpoint to verify manually"
-        elif is_expired:
-            failure_reasons.append("Page indicates job is expired / no longer available")
         elif req_id_missing:
             failure_reasons.append("Requisition ID not found in page payload (expired/invalid requisition)")
         elif not has_apply_channel:
@@ -500,6 +675,10 @@ def analyze_job(job, max_yoe, band_min_yoe=None, _override=None, _aggregator_url
     for c in hard_blockers:
         failure_reasons.append(f"Hard requirement the candidate cannot meet ({c}): \"{hard_reqs[c]}\"")
     is_proper = exists_and_non_empty and level_matched and not hard_blockers
+    # A page we could not read is not a closed posting: blocked, bot-walled, unreachable, or a client-rendered shell.
+    renderable = bool(not exists_and_non_empty and not is_shell_host and (
+        status in (0, *BLOCKED_STATUSES) or is_waf_block
+        or (status == 200 and not has_substance and raw_content and "<script" in raw_content.lower())))
     # Near miss: live posting, no senior title, stated minimum only 1 to 2 years above the band.
     # Not verified for the main list, but worth a labeled "stretch" entry for the agent to judge.
     # A years requirement that mentions equivalent experience, internships, research or an advanced degree
@@ -538,7 +717,10 @@ def analyze_job(job, max_yoe, band_min_yoe=None, _override=None, _aggregator_url
                          else "industry/open"),
         "content_hash": hashlib.sha1(clean_text[:3000].encode("utf-8", "ignore")).hexdigest() if clean_text else "",
         "manual_verify_hint": manual_hint,
-        "text_snippet": clean_text[:400]
+        "text_snippet": clean_text[:400],
+        "verification_method": method,
+        "verification_tier": ("verified" if is_proper else "could_not_machine_check" if renderable else "rejected"),
+        "client_rendered": renderable,
     })
     return res
 
@@ -570,6 +752,11 @@ def main():
                              "citizenship-only, or a security clearance (they are always reported under hard_requirements)")
     parser.add_argument("--exclude-companies", nargs="*", default=[],
                         help="Company name substrings to drop before verification (hard exclusions and active-pipeline companies incl. parents/subsidiaries)")
+    parser.add_argument("--render", choices=["off", "headless", "headed"], default="headless",
+                        help="For pages that are client-rendered or bot-walled: render them in a browser (needs Playwright; "
+                             "see render_page.py). 'headless' uses a hidden browser; 'headed' may also open a visible Chrome "
+                             "window for bot walls. Silently skipped when Playwright is not installed. Default: headless")
+    parser.add_argument("--render-max", type=int, default=30, help="Most pages to render in one run (default 30)")
     args = parser.parse_args()
 
     json_path = args.jobs_json_file
@@ -625,6 +812,35 @@ def main():
             elif res:
                 unverified.append(res)
 
+    # Ladder rung 3: render the pages a plain fetch could not read, in one browser session.
+    if args.render != "off":
+        todo = [r for r in unverified if r.get("client_rendered")][:args.render_max]
+        if todo:
+            try:
+                import render_page
+                av = render_page.availability()
+                if av["playwright"] and (av["cached_chromium"] or av["installed_chrome"]):
+                    print(f"Rendering {len(todo)} client-rendered or blocked pages in a browser...", flush=True)
+                    pages = {r["url"]: r for r in render_page.render_any([r["url"] for r in todo], allow_headed=(args.render == "headed"))}
+                    import html as _h
+                    for old_res in todo:
+                        pg = pages.get(old_res["url"])
+                        if not pg or pg.get("blocked") or pg.get("error") or len(pg.get("text", "")) < 300:
+                            old_res["failure_reasons"].append("Browser render did not return a readable posting")
+                            continue
+                        doc = f"<html><body>{_h.escape(pg['text'])}</body></html>"
+                        job = {k: v for k, v in old_res.items() if k in ("company", "title", "location", "updated_at", "source")}
+                        job["url"] = old_res["url"]
+                        new_res = analyze_job(job, args.max_yoe, args.min_yoe, _override=(200, doc, pg.get("final_url") or old_res["url"]), _browser=True)
+                        old_res.clear()
+                        old_res.update(new_res)
+                    verified.extend(r for r in unverified if r.get("is_proper"))
+                    unverified[:] = [r for r in unverified if not r.get("is_proper")]
+                else:
+                    print("Render skipped: Playwright or a browser is not available (optional).", flush=True)
+            except ImportError:
+                pass
+
     # Identical page text served for different URLs on one host means a shell/landing page, not postings.
     groups = {}
     for v in verified:
@@ -651,7 +867,8 @@ def main():
     with open(args.output, "w", encoding="utf-8") as f:
         json.dump(verified, f, indent=2)
 
-    rejected_path = args.output.replace(".json", "_rejected.json")
+    out_root, out_ext = _os.path.splitext(args.output)
+    rejected_path = f"{out_root}_rejected{out_ext or '.json'}"
     with open(rejected_path, "w", encoding="utf-8") as f:
         json.dump(unverified, f, indent=2)
     print(f"Saved {len(verified)} verified roles to {args.output}")
